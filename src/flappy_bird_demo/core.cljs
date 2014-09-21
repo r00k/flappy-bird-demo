@@ -32,7 +32,7 @@
                       :time-of-last-click 0
                       :flappy-y   start-y
                       :pillar-list
-                      [{ :start-time 0
+                      [{ :creation-time 0
                          :pos-x 900
                          :cur-x 900
                          :gap-top 200 }]})
@@ -40,8 +40,8 @@
 
 (defonce game-state (atom starting-state))
 
-(defn curr-pillar-pos [cur-time {:keys [pos-x start-time] }]
-  (translate pos-x horiz-vel (- cur-time start-time)))
+(defn curr-pillar-pos [cur-time {:keys [pos-x creation-time] }]
+  (translate pos-x horiz-vel (- cur-time creation-time)))
 
 (defn in-pillar? [{:keys [cur-x]}]
   (and (>= (+ flappy-x flappy-width)
@@ -64,7 +64,7 @@
     st))
 
 (defn new-pillar [cur-time pos-x]
-  {:start-time cur-time
+  {:creation-time cur-time
    :pos-x      pos-x
    :cur-x      pos-x
    :gap-top    (+ 60 (rand-int (- bottom-y 120 pillar-gap)))})
@@ -165,7 +165,7 @@
   (reset! game-state
     (-> starting-state
         (update-in [:pillar-list]
-                   (fn [pillars] (map #(assoc % :start-time time) pillars)))
+                   (fn [pillars] (map #(assoc % :creation-time time) pillars)))
         (assoc
             :game-start-time time
             :time-of-last-click time
@@ -204,8 +204,7 @@
   game-state
   :state-dump
   (fn [_ _ _ n]
-    (.log js/console (str "flappy-start-time" (:time-of-last-click n)))
-    (.log js/console (str "start-time" (:start-time n)))))
+    (.log js/console (str "" (:time-of-last-click n)))))
 
 (reset! game-state @game-state)
 
