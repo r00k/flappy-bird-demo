@@ -25,23 +25,20 @@
 (def pillar-gap 258) ;; 158
 (def pillar-width 86)
 
-(def starting-state { :timer-running false
-                      :jump-count 0
-                      :initial-vel 0
-                      :game-start-time 0
-                      :time-of-last-click 0
-                      :flappy-y   start-y
-                      :pillar-list
-                      [{ :creation-time 0
-                         :pos-x 900
-                         :cur-x 900
-                         :gap-top 200 }]})
+(def starting-state {:timer-running false
+                     :jump-count 0
+                     :initial-vel 0
+                     :flappy-y start-y
+                     :pillars [{:creation-time 0
+                                :pos-x 900
+                                :cur-x 900
+                                :gap-top 200}]})
 
 
 (defonce game-state (atom starting-state))
 
-(defn curr-pillar-pos [cur-time {:keys [pos-x creation-time] }]
-  (translate pos-x horiz-vel (- cur-time creation-time)))
+(defn curr-pillar-pos [current-time {:keys [pos-x creation-time] }]
+  (translate pos-x horiz-vel (- current-time creation-time)))
 
 (defn in-pillar? [{:keys [cur-x]}]
   (and (>= (+ flappy-x flappy-width)
@@ -56,30 +53,30 @@
 (defn bottom-collision? [{:keys [flappy-y]}]
   (>= flappy-y (- bottom-y flappy-height)))
 
-(defn collision? [{:keys [pillar-list] :as st}]
+(defn collision? [{:keys [pillars] :as st}]
   (if (some #(or (and (in-pillar? %)
                       (not (in-pillar-gap? st %)))
-                 (bottom-collision? st)) pillar-list)
+                 (bottom-collision? st)) pillars)
     (assoc st :timer-running false)
     st))
 
-(defn new-pillar [cur-time pos-x]
-  {:creation-time cur-time
+(defn new-pillar [current-time pos-x]
+  {:creation-time current-time
    :pos-x      pos-x
    :cur-x      pos-x
    :gap-top    (+ 60 (rand-int (- bottom-y 120 pillar-gap)))})
 
-(defn update-pillars [{:keys [pillar-list cur-time] :as st}]
-  (let [pillars-with-pos (map #(assoc % :cur-x (curr-pillar-pos cur-time %)) pillar-list)
+(defn update-pillars [{:keys [pillars current-time] :as st}]
+  (let [pillars-with-pos (map #(assoc % :cur-x (curr-pillar-pos current-time %)) pillars)
         pillars-in-world (sort-by
                           :cur-x
                           (filter #(> (:cur-x %) (- pillar-width)) pillars-with-pos))]
     (assoc st
-      :pillar-list
+      :pillars
       (if (< (count pillars-in-world) 3)
         (conj pillars-in-world
               (new-pillar
-               cur-time
+               current-time
                (+ pillar-spacing
                   (:cur-x (last pillars-in-world)))))
         pillars-in-world))))
@@ -100,8 +97,8 @@
         :flappy-y new-y))
     (sine-wave st)))
 
-(defn score [{:keys [cur-time game-start-time] :as st}]
-  (let [score (- (.abs js/Math (floor (/ (- (* (- cur-time game-start-time) horiz-vel) 544)
+(defn score [{:keys [current-time game-start-time] :as st}]
+  (let [score (- (.abs js/Math (floor (/ (- (* (- current-time game-start-time) horiz-vel) 544)
                                pillar-spacing)))
                  4)]
   (assoc st :score (if (neg? score) 0 score))))
@@ -109,36 +106,36 @@
 (defn time-update [timestamp state]
   (-> state
       (assoc
-          :cur-time timestamp
+          :current-time timestamp
           :time-delta (- timestamp (:time-of-last-click state)))
       update-flappy
       update-pillars
       collision?
       score))
 
-(defn jump [{:keys [cur-time jump-count] :as state}]
+(defn jump [{:keys [current-time jump-count] :as state}]
   (-> state
       (assoc
           :jump-count (inc jump-count)
-          :time-of-last-click cur-time
+          :time-of-last-click current-time
           :initial-vel jump-vel)))
 
 ;; derivatives
 
-(defn border [{:keys [cur-time] :as state}]
+(defn border [{:keys [current-time] :as state}]
   (-> state
-      (assoc :border-pos (mod (translate 0 horiz-vel cur-time) 23))))
+      (assoc :border-pos (mod (translate 0 horiz-vel current-time) 23))))
 
-(defn pillar-offset [{:keys [cur-time]} {:keys [gap-top] :as p}]
+(defn pillar-offset [{:keys [current-time]} {:keys [gap-top] :as p}]
   (assoc p
     :upper-height gap-top
     :lower-height (- bottom-y gap-top pillar-gap)))
 
 (defn pillar-offsets [state]
-  (update-in state [:pillar-list]
-             (fn [pillar-list]
+  (update-in state [:pillars]
+             (fn [pillars]
                (map (partial pillar-offset state)
-                    pillar-list))))
+                    pillars))))
 
 (defn world [state]
   (-> state
@@ -164,7 +161,7 @@
 (defn set-initial-game-state [time]
   (reset! game-state
     (-> starting-state
-        (update-in [:pillar-list]
+        (update-in [:pillars]
                    (fn [pillars] (map #(assoc % :creation-time time) pillars)))
         (assoc
             :game-start-time time
@@ -178,18 +175,18 @@
      (set-initial-game-state time)
      (time-loop time))))
 
-(defn main-template [{:keys [score cur-time jump-count
+(defn main-template [{:keys [score current-time jump-count
                              timer-running border-pos
-                             flappy-y pillar-list]}]
-  (sab/html [:div.board { :onMouseDown (fn [e]
-                                         (swap! game-state jump)
-                                         (.preventDefault e))}
+                             flappy-y pillars]}]
+  (sab/html [:div.board {:onMouseDown (fn [e]
+                                        (swap! game-state jump)
+                                        (.preventDefault e))}
              [:h1.score score]
              (if-not timer-running
                [:a.start-button {:onClick #(start-game)}
                 (if (< 1 jump-count) "RESTART" "START")]
                [:span])
-             [:div (map pillar pillar-list)]
+             [:div (map pillar pillars)]
              [:div.flappy {:style {:top (px flappy-y)}}]
              [:div.scrolling-border {:style { :background-position-x (px border-pos)}}]]))
 
