@@ -22,14 +22,14 @@
 (def flappy-width 57)
 (def flappy-height 41)
 (def pillar-spacing 324)
-(def pillar-gap 158) ;; 158
+(def pillar-gap 258) ;; 158
 (def pillar-width 86)
 
 (def starting-state { :timer-running false
                       :jump-count 0
                       :initial-vel 0
-                      :start-time 0
-                      :flappy-start-time 0
+                      :game-start-time 0
+                      :time-of-last-click 0
                       :flappy-y   start-y
                       :pillar-list
                       [{ :start-time 0
@@ -37,15 +37,8 @@
                          :cur-x 900
                          :gap-top 200 }]})
 
-(defn reset-state [_ cur-time]
-  (-> starting-state
-      (update-in [:pillar-list] (fn [pls] (map #(assoc % :start-time cur-time) pls)))
-      (assoc
-          :start-time cur-time
-          :flappy-start-time cur-time
-          :timer-running true)))
 
-(defonce flap-state (atom starting-state))
+(defonce game-state (atom starting-state))
 
 (defn curr-pillar-pos [cur-time {:keys [pos-x start-time] }]
   (translate pos-x horiz-vel (- cur-time start-time)))
@@ -79,7 +72,7 @@
 (defn update-pillars [{:keys [pillar-list cur-time] :as st}]
   (let [pillars-with-pos (map #(assoc % :cur-x (curr-pillar-pos cur-time %)) pillar-list)
         pillars-in-world (sort-by
-                          :cur-x 
+                          :cur-x
                           (filter #(> (:cur-x %) (- pillar-width)) pillars-with-pos))]
     (assoc st
       :pillar-list
@@ -107,8 +100,8 @@
         :flappy-y new-y))
     (sine-wave st)))
 
-(defn score [{:keys [cur-time start-time] :as st}]
-  (let [score (- (.abs js/Math (floor (/ (- (* (- cur-time start-time) horiz-vel) 544)
+(defn score [{:keys [cur-time game-start-time] :as st}]
+  (let [score (- (.abs js/Math (floor (/ (- (* (- cur-time game-start-time) horiz-vel) 544)
                                pillar-spacing)))
                  4)]
   (assoc st :score (if (neg? score) 0 score))))
@@ -117,7 +110,7 @@
   (-> state
       (assoc
           :cur-time timestamp
-          :time-delta (- timestamp (:flappy-start-time state)))
+          :time-delta (- timestamp (:time-of-last-click state)))
       update-flappy
       update-pillars
       collision?
@@ -127,7 +120,7 @@
   (-> state
       (assoc
           :jump-count (inc jump-count)
-          :flappy-start-time cur-time
+          :time-of-last-click cur-time
           :initial-vel jump-vel)))
 
 ;; derivatives
@@ -162,24 +155,34 @@
                                        :height lower-height}}]])
 
 (defn time-loop [time]
-  (let [new-state (swap! flap-state (partial time-update time))]
+  (let [new-state (swap! game-state (partial time-update time))]
     (when (:timer-running new-state)
       (go
        (<! (timeout 30))
        (.requestAnimationFrame js/window time-loop)))))
 
+(defn set-initial-game-state [time]
+  (reset! game-state
+    (-> starting-state
+        (update-in [:pillar-list]
+                   (fn [pillars] (map #(assoc % :start-time time) pillars)))
+        (assoc
+            :game-start-time time
+            :time-of-last-click time
+            :timer-running true))))
+
 (defn start-game []
   (.requestAnimationFrame
    js/window
    (fn [time]
-     (reset! flap-state (reset-state @flap-state time))
+     (set-initial-game-state time)
      (time-loop time))))
 
 (defn main-template [{:keys [score cur-time jump-count
                              timer-running border-pos
                              flappy-y pillar-list]}]
   (sab/html [:div.board { :onMouseDown (fn [e]
-                                         (swap! flap-state jump)
+                                         (swap! game-state jump)
                                          (.preventDefault e))}
              [:h1.score score]
              (if-not timer-running
@@ -194,14 +197,20 @@
   (defn renderer [full-state]
     (.renderComponent js/React (main-template full-state) node)))
 
-(add-watch flap-state :renderer (fn [_ _ _ n]
+(add-watch game-state :renderer (fn [_ _ _ n]
                                   (renderer (world n))))
 
-(reset! flap-state @flap-state)
+#_(add-watch
+  game-state
+  :state-dump
+  (fn [_ _ _ n]
+    (.log js/console (str "flappy-start-time" (:time-of-last-click n)))
+    (.log js/console (str "start-time" (:start-time n)))))
+
+(reset! game-state @game-state)
 
 (fw/watch-and-reload  :jsload-callback (fn []
                                          ;; you would add this if you
                                          ;; have more than one file
-                                         #_(reset! flap-state @flap-state)
+                                         #_(reset! game-state @game-state)
                                          ))
-
