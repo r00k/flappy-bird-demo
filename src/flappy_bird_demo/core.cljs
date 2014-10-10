@@ -14,7 +14,7 @@
   (floor (+ start-pos (* time vel))))
 
 (def horiz-vel -0.15)
-(def gravity 0.04)
+(def gravity 0.035)
 (def jump-vel 15)
 (def start-y 312)
 (def bottom-y 561)
@@ -27,7 +27,7 @@
 (def update-interval 10)
 
 (def starting-state {:game-is-active false
-                     :jump-count 0
+                     :user-has-clicked false
                      :initial-vel 0
                      :flappy-y start-y
                      :pillars [{:creation-time 0
@@ -87,8 +87,8 @@
     :flappy-y
     (+ start-y (* 30 (.sin js/Math (/ (:time-delta st) 300))))))
 
-(defn update-flappy [{:keys [time-delta initial-vel flappy-y jump-count] :as st}]
-  (if (pos? jump-count)
+(defn update-flappy [{:keys [time-delta initial-vel flappy-y user-has-clicked] :as st}]
+  (if user-has-clicked
     (let [cur-vel (- initial-vel (* time-delta gravity))
           new-y   (- flappy-y cur-vel)
           new-y   (if (> new-y (- bottom-y flappy-height))
@@ -105,10 +105,10 @@
   (assoc st :score (if (neg? score) 0 score))))
 
 
-(defn jump [{:keys [current-time jump-count] :as state}]
+(defn jump [{:keys [current-time user-has-clicked] :as state}]
   (-> state
       (assoc
-          :jump-count (inc jump-count)
+          :user-has-clicked true
           :time-of-last-click current-time
           :initial-vel jump-vel)))
 
@@ -150,7 +150,7 @@
         :time-delta (- timestamp (:time-of-last-click state)))
       update-flappy
       update-pillars
-      collision?
+      ;; collision?
       score))
 
 (defn time-loop [time]
@@ -177,7 +177,7 @@
      (set-initial-game-state time)
      (time-loop time))))
 
-(defn main-template [{:keys [score current-time jump-count
+(defn main-template [{:keys [score current-time user-has-clicked
                              game-is-active border-pos
                              flappy-y pillars]}]
   (sab/html [:div.board {:onMouseDown (fn [e]
@@ -186,7 +186,7 @@
              [:h1.score score]
              (if-not game-is-active
                [:a.start-button {:onClick #(start-game)}
-                (if (< 1 jump-count) "RESTART" "START")]
+                (if user-has-clicked "RESTART" "START")]
                [:span])
              [:div (map pillar pillars)]
              [:div.flappy {:style {:top (px flappy-y)}}]
