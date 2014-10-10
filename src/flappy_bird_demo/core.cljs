@@ -25,7 +25,7 @@
 (def pillar-gap 258) ;; 158
 (def pillar-width 86)
 
-(def starting-state {:timer-running false
+(def starting-state {:game-is-active false
                      :jump-count 0
                      :initial-vel 0
                      :flappy-y start-y
@@ -57,7 +57,7 @@
   (if (some #(or (and (in-pillar? %)
                       (not (in-pillar-gap? st %)))
                  (bottom-collision? st)) pillars)
-    (assoc st :timer-running false)
+    (assoc st :game-is-active false)
     st))
 
 (defn new-pillar [current-time pos-x]
@@ -103,15 +103,6 @@
                  4)]
   (assoc st :score (if (neg? score) 0 score))))
 
-(defn time-update [timestamp state]
-  (-> state
-      (assoc
-          :current-time timestamp
-          :time-delta (- timestamp (:time-of-last-click state)))
-      update-flappy
-      update-pillars
-      collision?
-      score))
 
 (defn jump [{:keys [current-time jump-count] :as state}]
   (-> state
@@ -151,12 +142,22 @@
    [:div.pillar.pillar-lower {:style {:left (px cur-x)
                                        :height lower-height}}]])
 
+(defn time-update [timestamp state]
+  (-> state
+      (assoc
+        :current-time timestamp
+        :time-delta (- timestamp (:time-of-last-click state)))
+      update-flappy
+      update-pillars
+      collision?
+      score))
+
 (defn time-loop [time]
-  (let [new-state (swap! game-state (partial time-update time))]
-    (when (:timer-running new-state)
-      (go
-       (<! (timeout 30))
-       (.requestAnimationFrame js/window time-loop)))))
+  (swap! game-state (partial time-update time))
+  (when (:game-is-active @game-state)
+    (go
+      (<! (timeout 30))
+      (.requestAnimationFrame js/window time-loop))))
 
 (defn set-initial-game-state [time]
   (reset! game-state
@@ -166,7 +167,7 @@
         (assoc
             :game-start-time time
             :time-of-last-click time
-            :timer-running true))))
+            :game-is-active true))))
 
 (defn start-game []
   (.requestAnimationFrame
@@ -176,13 +177,13 @@
      (time-loop time))))
 
 (defn main-template [{:keys [score current-time jump-count
-                             timer-running border-pos
+                             game-is-active border-pos
                              flappy-y pillars]}]
   (sab/html [:div.board {:onMouseDown (fn [e]
                                         (swap! game-state jump)
                                         (.preventDefault e))}
              [:h1.score score]
-             (if-not timer-running
+             (if-not game-is-active
                [:a.start-button {:onClick #(start-game)}
                 (if (< 1 jump-count) "RESTART" "START")]
                [:span])
