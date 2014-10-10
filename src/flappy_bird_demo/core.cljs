@@ -14,8 +14,8 @@
   (floor (+ start-pos (* time vel))))
 
 (def horiz-vel -0.15)
-(def gravity 0.05)
-(def jump-vel 21)
+(def gravity 0.04)
+(def jump-vel 15)
 (def start-y 312)
 (def bottom-y 561)
 (def flappy-x 212)
@@ -24,6 +24,7 @@
 (def pillar-spacing 324)
 (def pillar-gap 258) ;; 158
 (def pillar-width 86)
+(def update-interval 10)
 
 (def starting-state {:game-is-active false
                      :jump-count 0
@@ -156,7 +157,7 @@
   (swap! game-state (partial time-update time))
   (when (:game-is-active @game-state)
     (go
-      (<! (timeout 30))
+      (<! (timeout update-interval))
       (.requestAnimationFrame js/window time-loop))))
 
 (defn set-initial-game-state [time]
