@@ -7,13 +7,13 @@
 (defn pillar [{:keys [cur-x upper-height lower-height]}]
   [:div.pillars
    [:div.pillar.pillar-upper {:style {:left (px cur-x)
-                                       :height upper-height}}]
+                                      :height upper-height}}]
    [:div.pillar.pillar-lower {:style {:left (px cur-x)
-                                       :height lower-height}}]])
+                                      :height lower-height}}]])
 
 (defn main [{:keys [score current-time user-has-clicked
                     game-is-running border-pos
-                    flappy-y pillars start-fn jump-callback-fn]}]
+                    flappy-y pillars start-fn jump-callback-fn event-chan]}]
   (sab/html [:div.board {:onMouseDown jump-callback-fn}
              [:h1.score score]
              (if-not game-is-running
@@ -22,5 +22,6 @@
                [:span])
              [:div (map pillar pillars)]
              [:div.flappy {:style {:top (px flappy-y)}}]
-             [:div.scrolling-border {:style { :background-position-x (px border-pos)}}]]))
-
+             [:div.scrolling-border {:style
+                                     {:background-position-x
+                                      (px border-pos)}}]]))

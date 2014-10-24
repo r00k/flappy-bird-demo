@@ -142,18 +142,19 @@
       border
       pillar-offsets))
 
-(defn time-update [timestamp state]
-  (-> state
-      (assoc
-        :current-time timestamp
-        :time-delta (- timestamp (:time-of-last-click state)))
-      update-flappy
-      update-pillars
-      collision?
-      score))
+(defn update-game [time]
+  (swap! game-state (fn [state]
+                      (-> state
+                          (assoc
+                            :current-time time
+                            :time-delta (- time (:time-of-last-click state)))
+                          update-flappy
+                          update-pillars
+                          collision?
+                          score))))
 
 (defn time-loop [time]
-  (swap! game-state (partial time-update time))
+  (update-game time)
   (when (:game-is-running @game-state)
     (go
       (<! (timeout update-interval))
@@ -184,11 +185,12 @@
                       (templates/main
                         (-> full-state
                             (assoc :start-fn start-game)
+                            (assoc :event-chan event-chan)
                             (assoc :jump-callback-fn jump-callback-fn)))
                       node)))
 
-(add-watch game-state :renderer (fn [_ _ _ n]
-                                  (render (world n))))
+(add-watch game-state :renderer (fn [_ _ _ new-state]
+                                  (render (world new-state))))
 
 #_(add-watch
   game-state
@@ -198,8 +200,4 @@
 
 (reset! game-state @game-state)
 
-(fw/watch-and-reload  :jsload-callback (fn []
-                                         ;; you would add this if you
-                                         ;; have more than one file
-                                         (reset! flap-state @flap-state)
-                                         ))
+(fw/watch-and-reload :jsload-callback #((reset! game-state @game-state)))
