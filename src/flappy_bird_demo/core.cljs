@@ -2,7 +2,8 @@
   (:require
    [sablono.core :as sab :include-macros true]
    [figwheel.client :as fw]
-   [cljs.core.async :refer [<! chan put! close! timeout]])
+   [cljs.core.async :refer [<! timeout]]
+   [flappy-bird-demo.templates :as templates])
   (:require-macros
    [cljs.core.async.macros :refer [go-loop go]]))
 
@@ -141,15 +142,6 @@
       border
       pillar-offsets))
 
-(defn px [n] (str n "px"))
-
-(defn pillar [{:keys [cur-x pos-x upper-height lower-height]}]
-  [:div.pillars
-   [:div.pillar.pillar-upper {:style {:left (px cur-x)
-                                       :height upper-height}}]
-   [:div.pillar.pillar-lower {:style {:left (px cur-x)
-                                       :height lower-height}}]])
-
 (defn time-update [timestamp state]
   (-> state
       (assoc
@@ -184,27 +176,19 @@
      (set-initial-game-state time)
      (time-loop time))))
 
-(defn main-template [{:keys [score current-time user-has-clicked
-                             game-is-running border-pos
-                             flappy-y pillars]}]
-  (sab/html [:div.board {:onMouseDown (fn [e]
-                                        (swap! game-state jump)
-                                        (.preventDefault e))}
-             [:h1.score score]
-             (if-not game-is-running
-               [:a.start-button {:onClick #(start-game)}
-                (if user-has-clicked "RESTART" "START")]
-               [:span])
-             [:div (map pillar pillars)]
-             [:div.flappy {:style {:top (px flappy-y)}}]
-             [:div.scrolling-border {:style { :background-position-x (px border-pos)}}]]))
-
-(let [node (.getElementById js/document "board-area")]
-  (defn renderer [full-state]
-    (.renderComponent js/React (main-template full-state) node)))
+; TODO: pass in a chan for events, rather than fns
+(let [node (.getElementById js/document "board-area")
+      jump-callback-fn (fn [e] (swap! game-state jump) (.preventDefault e))]
+  (defn render [full-state]
+    (.renderComponent js/React
+                      (templates/main
+                        (-> full-state
+                            (assoc :start-fn start-game)
+                            (assoc :jump-callback-fn jump-callback-fn)))
+                      node)))
 
 (add-watch game-state :renderer (fn [_ _ _ n]
-                                  (renderer (world n))))
+                                  (render (world n))))
 
 #_(add-watch
   game-state
@@ -217,5 +201,5 @@
 (fw/watch-and-reload  :jsload-callback (fn []
                                          ;; you would add this if you
                                          ;; have more than one file
-                                         #_(reset! game-state @game-state)
+                                         (reset! flap-state @flap-state)
                                          ))
