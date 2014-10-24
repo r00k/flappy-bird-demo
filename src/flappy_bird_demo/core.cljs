@@ -2,7 +2,7 @@
   (:require
    [sablono.core :as sab :include-macros true]
    [figwheel.client :as fw]
-   [cljs.core.async :refer [<! chan sliding-buffer put! close! timeout]])
+   [cljs.core.async :refer [<! chan put! close! timeout]])
   (:require-macros
    [cljs.core.async.macros :refer [go-loop go]]))
 
@@ -13,33 +13,37 @@
 (defn translate [start-pos vel time]
   (floor (+ start-pos (* time vel))))
 
-(def horiz-vel -0.15)
-(def gravity 0.035)
-(def jump-vel 15)
-(def start-y 312)
-(def bottom-y 561)
-(def flappy-x 212)
-(def flappy-width 57)
-(def flappy-height 41)
-(def pillar-spacing 324)
-(def pillar-gap 258) ;; 158
-(def pillar-width 86)
-(def update-interval 10)
+;    |   0
+;    |   1
+;    \/  2
 
-(def starting-state {:game-is-active false
+(def horizontal-velocity "How fast flappy flies to the right" -0.15)
+(def gravity "The force of gravity" 0.035)
+(def jump-velocity "Velocity of flappy's jumps" 15)
+(def start-y "Flappy's starting height" 312)
+(def bottom-y "The height of the ground" 561)
+(def flappy-x "Flappy's x position" 212)
+(def flappy-width "How wide flappy's avatar is" 57)
+(def flappy-height "How tall flappy's avatar is" 41)
+(def pillar-spacing "The spacing between pillars" 324)
+(def pillar-gap "The space between the top and bottom of a pillar" 258)
+(def pillar-width 86)
+(def update-interval "Time between game ticks in ms" 10)
+
+(def starting-state {:game-is-running false
+                     :should-detect-collisions true
                      :user-has-clicked false
-                     :initial-vel 0
+                     :initial-velocity 0
                      :flappy-y start-y
                      :pillars [{:creation-time 0
                                 :pos-x 900
                                 :cur-x 900
                                 :gap-top 200}]})
 
-
 (defonce game-state (atom starting-state))
 
 (defn curr-pillar-pos [current-time {:keys [pos-x creation-time] }]
-  (translate pos-x horiz-vel (- current-time creation-time)))
+  (translate pos-x horizontal-velocity (- current-time creation-time)))
 
 (defn in-pillar? [{:keys [cur-x]}]
   (and (>= (+ flappy-x flappy-width)
@@ -55,10 +59,13 @@
   (>= flappy-y (- bottom-y flappy-height)))
 
 (defn collision? [{:keys [pillars] :as st}]
-  (if (some #(or (and (in-pillar? %)
-                      (not (in-pillar-gap? st %)))
-                 (bottom-collision? st)) pillars)
-    (assoc st :game-is-active false)
+  (if (:should-detect-collisions st)
+    (if (some #(or (and (in-pillar? %)
+                        (not (in-pillar-gap? st %)))
+                   (bottom-collision? st))
+              pillars)
+      (assoc st :game-is-running false)
+      st)
     st))
 
 (defn new-pillar [current-time pos-x]
@@ -87,9 +94,9 @@
     :flappy-y
     (+ start-y (* 30 (.sin js/Math (/ (:time-delta st) 300))))))
 
-(defn update-flappy [{:keys [time-delta initial-vel flappy-y user-has-clicked] :as st}]
+(defn update-flappy [{:keys [time-delta initial-velocity flappy-y user-has-clicked] :as st}]
   (if user-has-clicked
-    (let [cur-vel (- initial-vel (* time-delta gravity))
+    (let [cur-vel (- initial-velocity (* time-delta gravity))
           new-y   (- flappy-y cur-vel)
           new-y   (if (> new-y (- bottom-y flappy-height))
                     (- bottom-y flappy-height)
@@ -99,7 +106,7 @@
     (sine-wave st)))
 
 (defn score [{:keys [current-time game-start-time] :as st}]
-  (let [score (- (.abs js/Math (floor (/ (- (* (- current-time game-start-time) horiz-vel) 544)
+  (let [score (- (.abs js/Math (floor (/ (- (* (- current-time game-start-time) horizontal-velocity) 544)
                                pillar-spacing)))
                  4)]
   (assoc st :score (if (neg? score) 0 score))))
@@ -110,13 +117,13 @@
       (assoc
           :user-has-clicked true
           :time-of-last-click current-time
-          :initial-vel jump-vel)))
+          :initial-velocity jump-velocity)))
 
 ;; derivatives
 
 (defn border [{:keys [current-time] :as state}]
   (-> state
-      (assoc :border-pos (mod (translate 0 horiz-vel current-time) 23))))
+      (assoc :border-pos (mod (translate 0 horizontal-velocity current-time) 23))))
 
 (defn pillar-offset [{:keys [current-time]} {:keys [gap-top] :as p}]
   (assoc p
@@ -150,12 +157,12 @@
         :time-delta (- timestamp (:time-of-last-click state)))
       update-flappy
       update-pillars
-      ;; collision?
+      collision?
       score))
 
 (defn time-loop [time]
   (swap! game-state (partial time-update time))
-  (when (:game-is-active @game-state)
+  (when (:game-is-running @game-state)
     (go
       (<! (timeout update-interval))
       (.requestAnimationFrame js/window time-loop))))
@@ -168,7 +175,7 @@
         (assoc
             :game-start-time time
             :time-of-last-click time
-            :game-is-active true))))
+            :game-is-running true))))
 
 (defn start-game []
   (.requestAnimationFrame
@@ -178,13 +185,13 @@
      (time-loop time))))
 
 (defn main-template [{:keys [score current-time user-has-clicked
-                             game-is-active border-pos
+                             game-is-running border-pos
                              flappy-y pillars]}]
   (sab/html [:div.board {:onMouseDown (fn [e]
                                         (swap! game-state jump)
                                         (.preventDefault e))}
              [:h1.score score]
-             (if-not game-is-active
+             (if-not game-is-running
                [:a.start-button {:onClick #(start-game)}
                 (if user-has-clicked "RESTART" "START")]
                [:span])
