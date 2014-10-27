@@ -27,12 +27,13 @@
 (def flappy-width "How wide flappy's avatar is" 57)
 (def flappy-height "How tall flappy's avatar is" 41)
 (def pillar-spacing "The spacing between pillars" 324)
-(def pillar-gap "The space between the top and bottom of a pillar" 258)
+(def pillar-gap "The space between the top and bottom of a pillar" 288)
 (def pillar-width 86)
 (def update-interval "Time between game ticks in ms" 8)
+(def should-detect-collisions true)
+(def pillar-free-distance "Width in pixels before the first pillar" 544)
 
 (def starting-state {:game-is-running false
-                     :should-detect-collisions false
                      :user-has-clicked false
                      :initial-velocity 0
                      :flappy-y start-y
@@ -59,16 +60,6 @@
 (defn bottom-collision? [{:keys [flappy-y]}]
   (>= flappy-y (- bottom-y flappy-height)))
 
-(defn collision? [{:keys [pillars] :as st}]
-  (if (:should-detect-collisions st)
-    (if (some #(or (and (in-pillar? %)
-                        (not (in-pillar-gap? st %)))
-                   (bottom-collision? st))
-              pillars)
-      (assoc st :game-is-running false)
-      st)
-    st))
-
 (defn new-pillar [current-time pos-x]
   {:creation-time current-time
    :pos-x      pos-x
@@ -90,11 +81,6 @@
                   (:cur-x (last pillars-in-world)))))
         pillars-in-world))))
 
-(defn sine-wave [st]
-  (assoc st
-    :flappy-y
-    (+ start-y (* 30 (.sin js/Math (/ (:time-delta st) 300))))))
-
 (defn update-flappy [{:keys [time-delta initial-velocity flappy-y user-has-clicked] :as st}]
   (if user-has-clicked
     (let [cur-vel (- initial-velocity (* time-delta gravity))
@@ -106,13 +92,8 @@
         :flappy-y new-y))
     (sine-wave st)))
 
-(defn score [{:keys [current-time game-start-time] :as st}]
-  (let [score (- (.abs js/Math (floor (/ (- (* (- current-time game-start-time) horizontal-velocity) 544)
-                               pillar-spacing)))
-                 4)]
-  (assoc st :score (if (neg? score) 0 score))))
-
-
+; =============================================================================
+; My stuff
 (defn jump [{:keys [current-time user-has-clicked] :as state}]
   (-> state
       (assoc
@@ -120,7 +101,29 @@
           :time-of-last-click current-time
           :initial-velocity jump-velocity)))
 
-;; derivatives
+(defn collision? [{:keys [pillars] :as st}]
+  (if should-detect-collisions
+    (if (some #(or (and (in-pillar? %)
+                        (not (in-pillar-gap? st %)))
+                   (bottom-collision? st))
+              pillars)
+      (assoc st :game-is-running false)
+      st)
+    st))
+
+(defn sine-wave [st]
+  (assoc st
+    :flappy-y
+    (+ start-y (* 30 (.sin js/Math (/ (:time-delta st) 300))))))
+
+(defn score [{:keys [current-time game-start-time] :as st}]
+  (let [elapsed-time (- current-time game-start-time)
+        distance-traveled (- (* elapsed-time horizontal-velocity) pillar-free-distance)
+        pillars-passed (floor (/ distance-traveled pillar-spacing))
+        score (- (.abs js/Math pillars-passed) 4)]
+    (assoc st :score (if (neg? score) 0 score))))
+
+; =============================================================================
 
 (defn border [{:keys [current-time] :as state}]
   (-> state
@@ -191,11 +194,8 @@
 (add-watch game-state :renderer (fn [_ _ _ new-state]
                                   (render (world new-state))))
 
-#_(add-watch
-  game-state
-  :state-dump
-  (fn [_ _ _ n]
-    (.log js/console (str "" (:time-of-last-click n)))))
+#_(add-watch game-state :printer (fn [_ _ _ new-state]
+                                   (print new-state)))
 
 (reset! game-state @game-state)
 
