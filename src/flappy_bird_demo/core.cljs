@@ -29,10 +29,10 @@
 (def pillar-spacing "The spacing between pillars" 324)
 (def pillar-gap "The space between the top and bottom of a pillar" 258)
 (def pillar-width 86)
-(def update-interval "Time between game ticks in ms" 10)
+(def update-interval "Time between game ticks in ms" 8)
 
 (def starting-state {:game-is-running false
-                     :should-detect-collisions true
+                     :should-detect-collisions false
                      :user-has-clicked false
                      :initial-velocity 0
                      :flappy-y start-y
@@ -185,7 +185,6 @@
                       (templates/main
                         (-> full-state
                             (assoc :start-fn start-game)
-                            (assoc :event-chan event-chan)
                             (assoc :jump-callback-fn jump-callback-fn)))
                       node)))
 
