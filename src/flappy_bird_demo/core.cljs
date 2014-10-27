@@ -18,7 +18,7 @@
 ;    |   1
 ;    \/  2
 
-(def horizontal-velocity "How fast flappy flies to the right" -0.15)
+(def horizontal-velocity "How fast flappy flies to the right" 0.15)
 (def gravity "The force of gravity" 0.035)
 (def jump-velocity "Velocity of flappy's jumps" 15)
 (def start-y "Flappy's starting height" 312)
@@ -31,7 +31,7 @@
 (def pillar-width 86)
 (def update-interval "Time between game ticks in ms" 8)
 (def should-detect-collisions true)
-(def pillar-free-distance "Width in pixels before the first pillar" 544)
+(def pillar-free-distance "Width in pixels before the first pillar" 410)
 
 (def starting-state {:game-is-running false
                      :user-has-clicked false
@@ -45,7 +45,7 @@
 (defonce game-state (atom starting-state))
 
 (defn curr-pillar-pos [current-time {:keys [pos-x creation-time] }]
-  (translate pos-x horizontal-velocity (- current-time creation-time)))
+  (translate pos-x (- horizontal-velocity) (- current-time creation-time)))
 
 (defn in-pillar? [{:keys [cur-x]}]
   (and (>= (+ flappy-x flappy-width)
@@ -118,17 +118,16 @@
 
 (defn score [{:keys [current-time game-start-time] :as st}]
   (let [elapsed-time (- current-time game-start-time)
-        distance-traveled (- (* elapsed-time horizontal-velocity)
+        distance-traveled (- (* elapsed-time horizontal-velocity) 
                              pillar-free-distance)
-        pillars-passed (floor (/ distance-traveled pillar-spacing))
-        score (- (.abs js/Math pillars-passed) 4)]
-    (assoc st :score (if (neg? score) 0 score))))
+        pillars-passed (floor (/ distance-traveled pillar-spacing))]
+    (assoc st :score (if (neg? pillars-passed) 0 pillars-passed))))
 
 ; =============================================================================
 
 (defn border [{:keys [current-time] :as state}]
   (-> state
-      (assoc :border-pos (mod (translate 0 horizontal-velocity current-time) 23))))
+      (assoc :border-pos (mod (translate 0 (- horizontal-velocity) current-time) 23))))
 
 (defn pillar-offset [{:keys [current-time]} {:keys [gap-top] :as p}]
   (assoc p
