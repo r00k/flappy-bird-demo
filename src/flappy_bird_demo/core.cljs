@@ -30,7 +30,6 @@
 (def pillar-gap "The space between the top and bottom of a pillar" 288)
 (def pillar-width 86)
 (def update-interval "Time between game ticks in ms" 8)
-(def should-detect-collisions false)
 (def pillar-free-distance "Width in pixels before the first pillar" 410)
 
 (def starting-state {:game-is-running false
@@ -57,7 +56,7 @@
        (> (+ gap-top pillar-gap)
           (+ flappy-y flappy-height))))
 
-(defn bottom-collision? [{:keys [flappy-y]}]
+(defn touching-ground? [{:keys [flappy-y]}]
   (>= flappy-y (- bottom-y flappy-height)))
 
 (defn new-pillar [current-time pos-x]
@@ -93,7 +92,7 @@
     (sine-wave st)))
 
 ; =============================================================================
-; My stuff
+
 (defn jump [{:keys [current-time user-has-clicked] :as state}]
   (-> state
       (assoc
@@ -101,15 +100,16 @@
           :time-of-last-click current-time
           :initial-velocity jump-velocity)))
 
-(defn collision? [{:keys [pillars] :as st}]
-  (if should-detect-collisions
-    (if (some #(or (and (in-pillar? %)
-                        (not (in-pillar-gap? st %)))
-                   (bottom-collision? st))
-              pillars)
-      (assoc st :game-is-running false)
-      st)
-    st))
+(defn- touching-pillar? [state pillar]
+  (and (in-pillar? pillar)
+       (not (in-pillar-gap? state pillar))))
+
+(defn collision? [{:keys [pillars] :as state}]
+  (assoc
+    state
+    :game-is-running
+    (and (not-any? (partial touching-pillar? state) pillars)
+         (not (touching-ground? state)))))
 
 (defn sine-wave [state]
   (->> (:time-delta state)
