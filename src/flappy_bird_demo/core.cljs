@@ -27,7 +27,7 @@
 (def flappy-width "How wide flappy's avatar is" 57)
 (def flappy-height "How tall flappy's avatar is" 41)
 (def pillar-spacing "The spacing between pillars" 324)
-(def pillar-gap "The space between the top and bottom of a pillar" 288)
+(def pillar-gap "The space between the top and bottom of a pillar" 228)
 (def pillar-width 86)
 (def update-interval "Time between game ticks in ms" 8)
 (def pillar-free-distance "Width in pixels before the first pillar" 410)
@@ -94,11 +94,11 @@
 ; =============================================================================
 
 (defn jump [{:keys [current-time user-has-clicked] :as state}]
-  (-> state
-      (assoc
-          :user-has-clicked true
-          :time-of-last-click current-time
-          :initial-velocity jump-velocity)))
+  (assoc state
+         :user-has-clicked true
+         :time-of-last-click current-time
+         :initial-velocity jump-velocity))
+(def jump identity)
 
 (defn- touching-pillar? [state pillar]
   (and (in-pillar? pillar)
@@ -110,6 +110,7 @@
     :game-is-running
     (and (not-any? (partial touching-pillar? state) pillars)
          (not (touching-ground? state)))))
+(def collision? identity)
 
 (defn sine-wave [state]
   (->> (:time-delta state)
@@ -118,6 +119,7 @@
       (* 30)
       (+ start-y)
       (assoc state :flappy-y)))
+(def sine-wave identity)
 
 (defn score [{:keys [current-time game-start-time] :as st}]
   (let [elapsed-time (- current-time game-start-time)
@@ -125,6 +127,7 @@
                              pillar-free-distance)
         pillars-passed (floor (/ distance-traveled pillar-spacing))]
     (assoc st :score (if (neg? pillars-passed) 0 pillars-passed))))
+(def score identity)
 
 ; =============================================================================
 
