@@ -118,7 +118,8 @@
 
 (defn score [{:keys [current-time game-start-time] :as st}]
   (let [elapsed-time (- current-time game-start-time)
-        distance-traveled (- (* elapsed-time horizontal-velocity) pillar-free-distance)
+        distance-traveled (- (* elapsed-time horizontal-velocity)
+                             pillar-free-distance)
         pillars-passed (floor (/ distance-traveled pillar-spacing))
         score (- (.abs js/Math pillars-passed) 4)]
     (assoc st :score (if (neg? score) 0 score))))
