@@ -2,7 +2,9 @@ Print current state in browser
 
 sine-wave
   js interop
+  threading
   source maps
+  live reloading
 
 jump
   destructuring

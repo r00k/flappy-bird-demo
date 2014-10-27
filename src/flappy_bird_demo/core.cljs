@@ -30,7 +30,7 @@
 (def pillar-gap "The space between the top and bottom of a pillar" 288)
 (def pillar-width 86)
 (def update-interval "Time between game ticks in ms" 8)
-(def should-detect-collisions true)
+(def should-detect-collisions false)
 (def pillar-free-distance "Width in pixels before the first pillar" 410)
 
 (def starting-state {:game-is-running false
@@ -111,14 +111,17 @@
       st)
     st))
 
-(defn sine-wave [st]
-  (assoc st
-    :flappy-y
-    (+ start-y (* 30 (.sin js/Math (/ (:time-delta st) 300))))))
+(defn sine-wave [state]
+  (->> (:time-delta state)
+      (* 0.0033)
+      (.sin js/Math)
+      (* 30)
+      (+ start-y)
+      (assoc state :flappy-y)))
 
 (defn score [{:keys [current-time game-start-time] :as st}]
   (let [elapsed-time (- current-time game-start-time)
-        distance-traveled (- (* elapsed-time horizontal-velocity) 
+        distance-traveled (- (* elapsed-time horizontal-velocity)
                              pillar-free-distance)
         pillars-passed (floor (/ distance-traveled pillar-spacing))]
     (assoc st :score (if (neg? pillars-passed) 0 pillars-passed))))
