@@ -1,4 +1,15 @@
-Print current state in browser
+Please ask questions/interrupt/argue/heckle
+
+Show of hands, familiar with Clojure?
+
+Our plan
+  Flappy Bird in browser
+  Not boring parts
+
+Starting point
+  Live reloading
+    Change "start", speed, pillar height
+  Print current state in browser
 
 sine-wave
   js interop
@@ -20,7 +31,5 @@ collision?
 score
   threading
 
-No collision
-No jumping
-No sine wave
-No scoring
+Setup
+  Windows in right places
