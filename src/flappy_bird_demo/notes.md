@@ -9,7 +9,15 @@ Our plan
 Starting point
   Live reloading
     Change "start", speed, pillar height
+
+How it works now
   Print current state in browser
+  All app state in map, threaded through function pipeline
+
+jump
+  destructuring
+  maps
+  keywords
 
 sine-wave
   js interop
@@ -17,19 +25,14 @@ sine-wave
   source maps
   live reloading
 
-jump
-  destructuring
-  maps
-  keywords
+score
+  threading
 
 collision?
   conditionals
   some
   fn literals
   %
-
-score
-  threading
 
 Setup
   Windows in right places

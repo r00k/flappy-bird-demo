@@ -1,11 +1,11 @@
 (ns flappy-bird-demo.core
   (:require
-   [sablono.core :as sab :include-macros true]
-   [figwheel.client :as fw]
-   [cljs.core.async :refer [<! timeout]]
-   [flappy-bird-demo.templates :as templates])
+    [sablono.core :as sab :include-macros true]
+    [figwheel.client :as fw]
+    [cljs.core.async :refer [<! timeout]]
+    [flappy-bird-demo.templates :as templates])
   (:require-macros
-   [cljs.core.async.macros :refer [go-loop go]]))
+    [cljs.core.async.macros :refer [go-loop go]]))
 
 (enable-console-print!)
 
@@ -30,7 +30,7 @@
 (def pillar-gap "The space between the top and bottom of a pillar" 228)
 (def pillar-width 86)
 (def update-interval "Time between game ticks in ms" 9)
-(def pillar-free-distance "Width in pixels before the first pillar" 410)
+(def pillar-free-distance "Width in pixels before the first pillar" 420)
 
 (def starting-state {:game-is-running false
                      :user-has-clicked false
@@ -68,17 +68,17 @@
 (defn update-pillars [{:keys [pillars current-time] :as st}]
   (let [pillars-with-pos (map #(assoc % :cur-x (curr-pillar-pos current-time %)) pillars)
         pillars-in-world (sort-by
-                          :cur-x
-                          (filter #(> (:cur-x %) (- pillar-width)) pillars-with-pos))]
+                           :cur-x
+                           (filter #(> (:cur-x %) (- pillar-width)) pillars-with-pos))]
     (assoc st
-      :pillars
-      (if (< (count pillars-in-world) 3)
-        (conj pillars-in-world
-              (new-pillar
-               current-time
-               (+ pillar-spacing
-                  (:cur-x (last pillars-in-world)))))
-        pillars-in-world))))
+           :pillars
+           (if (< (count pillars-in-world) 3)
+             (conj pillars-in-world
+                   (new-pillar
+                     current-time
+                     (+ pillar-spacing
+                        (:cur-x (last pillars-in-world)))))
+             pillars-in-world))))
 
 (defn update-flappy [{:keys [time-delta flappy-velocity flappy-y user-has-clicked] :as st}]
   (if user-has-clicked
@@ -88,24 +88,47 @@
                     (- bottom-y flappy-height)
                     new-y)]
       (assoc st
-        :flappy-y new-y))
+             :flappy-y new-y))
     (sine-wave st)))
 
 ; =============================================================================
 
-(defn sine-wave [state]
-  (->> (:time-delta state)
-      (* 0.0033)
-      (.sin js/Math)
-      (* 30)
-      (+ start-y)
-      (assoc state :flappy-y)))
+; v0
+#_(defn jump [state]
+  (assoc state
+         :user-has-clicked true
+         :time-of-last-click (get state :current-time)
+         :flappy-velocity jump-velocity))
 
+; v1
 (defn jump [{:keys [current-time] :as state}]
   (assoc state
          :user-has-clicked true
          :time-of-last-click current-time
          :flappy-velocity jump-velocity))
+
+; v0
+(defn sine-wave [state]
+  (let [time-delta (:time-delta state)]
+    (assoc state
+          :flappy-y
+          (.sin js/Math time-delta))))
+
+; Final
+(defn sine-wave [state]
+  (->> (:time-delta state)
+       (* 0.0033)
+       (.sin js/Math)
+       (* 30)
+       (+ start-y)
+       (assoc state :flappy-y)))
+
+(defn score [{:keys [current-time game-start-time] :as state}]
+  (let [elapsed-time (- current-time game-start-time)
+        distance-traveled (- (* elapsed-time horizontal-velocity)
+                             pillar-free-distance)
+        pillars-passed (floor (/ distance-traveled pillar-spacing))]
+    (assoc state :score (if (neg? pillars-passed) 0 pillars-passed))))
 
 (defn- touching-pillar? [state pillar]
   (and (in-pillar? pillar)
@@ -118,20 +141,10 @@
     (and (not-any? (partial touching-pillar? state) pillars)
          (not (touching-ground? state)))))
 
-
-(defn score [{:keys [current-time game-start-time] :as st}]
-  (let [elapsed-time (- current-time game-start-time)
-
-
-        distance-traveled (- (* elapsed-time horizontal-velocity)
-                             pillar-free-distance)
-        pillars-passed (floor (/ distance-traveled pillar-spacing))]
-    (assoc st :score (if (neg? pillars-passed) 0 pillars-passed))))
-
-(def sine-wave identity)
-(def jump identity)
+;; (def sine-wave identity)
+;; (def jump identity)
 (def collision? identity)
-(def score identity)
+;; (def score identity)
 
 ; =============================================================================
 
@@ -141,8 +154,8 @@
 
 (defn pillar-offset [{:keys [current-time]} {:keys [gap-top] :as p}]
   (assoc p
-    :upper-height gap-top
-    :lower-height (- bottom-y gap-top pillar-gap)))
+         :upper-height gap-top
+         :lower-height (- bottom-y gap-top pillar-gap)))
 
 (defn pillar-offsets [state]
   (update-in state [:pillars]
@@ -175,20 +188,20 @@
 
 (defn set-initial-game-state [time]
   (reset! game-state
-    (-> starting-state
-        (update-in [:pillars]
-                   (fn [pillars] (map #(assoc % :creation-time time) pillars)))
-        (assoc
-            :game-start-time time
-            :time-of-last-click time
-            :game-is-running true))))
+          (-> starting-state
+              (update-in [:pillars]
+                         (fn [pillars] (map #(assoc % :creation-time time) pillars)))
+              (assoc
+                :game-start-time time
+                :time-of-last-click time
+                :game-is-running true))))
 
 (defn start-game []
   (.requestAnimationFrame
-   js/window
-   (fn [time]
-     (set-initial-game-state time)
-     (time-loop time))))
+    js/window
+    (fn [time]
+      (set-initial-game-state time)
+      (time-loop time))))
 
 ; TODO: pass in a chan for events, rather than fns
 (let [node (.getElementById js/document "board-area")
