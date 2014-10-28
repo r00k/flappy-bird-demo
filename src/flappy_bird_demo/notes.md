@@ -50,3 +50,12 @@ Setup
   Windows in right places
   Open Crockford image
   Open gojs.html
+
+
+Next time:
+  Slightly more basic examples in repl
+  Get repl eval in vim working
+  Didn't get to score example, but if I had, would it have added much?
+  Show memory usage in profiler
+  Throw finished fns in different file
+  Show source maps 
