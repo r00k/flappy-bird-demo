@@ -1,5 +1,8 @@
 Please ask questions/interrupt/argue/heckle
 
+Why?
+  Image
+
 Show of hands, familiar with Clojure?
 
 Our plan
@@ -34,5 +37,16 @@ collision?
   fn literals
   %
 
+Not shown, but awesome:
+  Browser-connected repl
+  Type checking!
+  Core.async
+
+
+Downsides:
+  Not self-hosting, requires java
+
 Setup
   Windows in right places
+  Open Crockford image
+  Open gojs.html
