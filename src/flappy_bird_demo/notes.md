@@ -59,3 +59,4 @@ Next time:
   Show memory usage in profiler
   Throw finished fns in different file
   Show source maps 
+  Mention react!
